@@ -124,6 +124,7 @@ class Net(nn.Module):
     opeMax = 0
     opeTotal = 0
     imgSize = 32
+    imgSizeNoPadding = 28
 
     def __init__(self):
         super(Net, self).__init__()
@@ -138,7 +139,7 @@ class Net(nn.Module):
 	def forward(self, x):
         x = self.pool(self.relu(self.conv1(x)))
         x = self.pool(self.relu(self.conv2(x)))
-        x = x.view(-1, 16 * 5 * 5)
+        x = x.view(-1, 16 * 5 * 5) # transforme tenseur en un truc linéaire
         x = self.relu(self.fc1(x))
         x = self.relu(self.fc2(x))
         x = self.fc3(x)
@@ -162,16 +163,18 @@ class Net(nn.Module):
         100 * correct / total))
         self.itera = self.itera +1
 
-    def conv2DStats(self, inputConv, weight, bias):
-        self.opeMulti = 0
-        self.opeAddi = 0
-        self.opeMax = 0
-        self.opeTotal = 0
-        return nn.Conv2d(inputConv, weight, bias)
+    def conv2DStats(self, inputConv, outputConv, kernelSize):
+        unitSet = self.imgSizeNoPadding * self.imgSizeNoPadding
+        weight = inputConv * outputConv * kernelSize * kernelSize
+        connection = unitSet * weight
+        self.opeMulti += connection * 1
+        self.opeAddi += connection * 1
+        self.opeMax += connection * 2
+        
+        return nn.Conv2d(inputConv, outputConv, kernelSize)
 
     def poolingStats(self, size, stride):
-        self.opeMulti = 0
-        self.opeAddi = 0
+        
         self.opeMax = 0
         self.opeTotal = 0
         return nn.MaxPool2d(size, stride)
@@ -180,12 +183,16 @@ class Net(nn.Module):
         self.opeMax += 1
         return F.relu(entry)
  	
- 	def linearStats(self, x, b):
-        self.opeMulti += 
-        self.opeAddi += 
-        return nn.Linear(x,b)
+ 	def linearStats(self, inputSize, outputSize):
+        totalConnection = inputSize * outputSize
+        self.opeMulti += totalConnection * 1
+        self.opeAddi += totalConnection * 1
+        self.opeMax += connection * 2
+        return nn.Linear(inputSize, outputSize)
+
 
 net = Net()
+#torch.save pour sauvegarder network
 
 ########################################################################
 # 3. Define a Loss function and optimizer
