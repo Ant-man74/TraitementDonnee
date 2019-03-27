@@ -114,7 +114,8 @@ def imshow(img):
 
 import torch.nn as nn
 import torch.nn.functional as F
-
+from datetime import datetime
+import torch.optim as optim
 
 class Net(nn.Module):
 
@@ -125,7 +126,9 @@ class Net(nn.Module):
     opeTotal = 0
     imgSize = 32
     imgSizeNoPadding = 28
-
+    startTime = 0
+    counter = 0
+    
     def __init__(self):
         super(Net, self).__init__()
         self.conv1 = self.conv2DStats(3, 6, 5) # size 5*5
@@ -136,13 +139,14 @@ class Net(nn.Module):
         self.fc2 = self.linearStats(120, 84) # size 120
         self.fc3 = self.linearStats(84, 10) # size 84
 
-	def forward(self, x):
+    def forward(self, x):
         x = self.pool(self.relu(self.conv1(x)))
         x = self.pool(self.relu(self.conv2(x)))
         x = x.view(-1, 16 * 5 * 5) # transforme tenseur en un truc linéaire
         x = self.relu(self.fc1(x))
         x = self.relu(self.fc2(x))
         x = self.fc3(x)
+        self.counter += 1
         return x
 
     def preEval(self, inputs, label, criterion):
@@ -164,32 +168,53 @@ class Net(nn.Module):
         self.itera = self.itera +1
 
     def conv2DStats(self, inputConv, outputConv, kernelSize):
+
         unitSet = self.imgSizeNoPadding * self.imgSizeNoPadding
         weight = inputConv * outputConv * kernelSize * kernelSize
         connection = unitSet * weight
         self.opeMulti += connection * 1
         self.opeAddi += connection * 1
-        self.opeMax += connection * 2
-        
+        self.opeTotal += connection * 2
         return nn.Conv2d(inputConv, outputConv, kernelSize)
 
     def poolingStats(self, size, stride):
         
-        self.opeMax = 0
-        self.opeTotal = 0
+        #self.opeMax += size * 3
+        #self.opeTotal += 3
         return nn.MaxPool2d(size, stride)
 
     def reluStats(self, entry):
-        self.opeMax += 1
+        #self.opeMax += 1
+        #self.opeTotal += 1
         return F.relu(entry)
- 	
- 	def linearStats(self, inputSize, outputSize):
+
+    def linearStats(self, inputSize, outputSize):
         totalConnection = inputSize * outputSize
         self.opeMulti += totalConnection * 1
         self.opeAddi += totalConnection * 1
-        self.opeMax += connection * 2
+        self.opeTotal += totalConnection * 2
         return nn.Linear(inputSize, outputSize)
 
+    def printAllStats(self):
+        print ("All operation: \n")
+        print("    - Addition:"+ str(self.opeAddi) +";\n")
+        print("    - Multiplication:"+ str(self.opeMulti) +";\n")
+        print("    - Max:"+ str(self.opeMax) +";\n")
+        print("Total: "+ str(self.opeTotal) +";\n")
+
+    def resetOperation(self):
+        self.opeMulti = 0
+        self.opeAddi = 0
+        self.opeTotal = 0
+        self.opeTotal = 0
+
+    def startTimer(self):
+        self.startTime = datetime.now()
+
+    def getTotalTimer(self):
+        endTime = datetime.now()
+        totalTime = endTime -  self.startTime
+        return totalTime
 
 net = Net()
 #torch.save pour sauvegarder network
@@ -198,8 +223,6 @@ net = Net()
 # 3. Define a Loss function and optimizer
 # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 # Let's use a Classification Cross-Entropy loss and SGD with momentum.
-
-import torch.optim as optim
 
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
@@ -213,8 +236,7 @@ optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
 # network and optimize.
 
 net.runOnData(testloader)
-
-
+net.startTimer()
 for epoch in range(2):  # loop over the dataset multiple times
 
     running_loss = 0.0
@@ -238,8 +260,9 @@ for epoch in range(2):  # loop over the dataset multiple times
             #      (epoch + 1, i + 1, running_loss / 2000))
             #running_loss = 0.0
     net.runOnData(testloader)
-
-
+print(net.getTotalTimer()) 
+print("Counter: "+str(net.counter))
+net.printAllStats()
 print('Finished Training')
 
 ########################################################################
