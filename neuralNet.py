@@ -18,22 +18,30 @@ class Net(nn.Module):
     def __init__(self):
         super(Net, self).__init__()
         self.conv1 = nn.Conv2d(3, 6, 5)
-        self.pool = nn.MaxPool2d(2, 2)
+        #self.conv5 = nn.Conv2d(6,16,3)
+        #self.conv6 = nn.Conv2d(16,16,3)
+
         self.conv2 = nn.Conv2d(6, 16, 5)
-        self.conv3 = nn.Conv2d(16, 32, 5)
-        self.fc1 = nn.Linear(32, 16)
-        self.fc2 = nn.Linear(16, 10)
-        #self.fc3 = nn.Linear(84, 10)
+        self.conv3 = nn.Conv2d(16, 24, 3)
+        self.pool = nn.MaxPool2d(2, 2)
+        self.fc1 = nn.Linear(24*4*4, 120)
+        self.fc2 = nn.Linear(120, 84)
+        self.fc3 = nn.Linear(84, 10)
+
 
     def forward(self, x):
         x = self.pool(F.relu(self.conv1(x)))
-        x = self.pool(F.relu(self.conv2(x)))
+        x = F.relu(self.conv2(x))
         x = F.relu(self.conv3(x))
         #print(x.shape)
-        x = x.view(-1, 32)
+        x = self.pool(x)
+        #x = self.pool(F.relu(self.conv2(x)))
+        #x = self.pool(F.relu(self.conv3(x)))
+        #print(x.shape)
+        x = x.view(-1, 24*4*4)
         x = F.relu(self.fc1(x))
-        x = self.fc2(x)
-       # x = self.fc3(x)
+        x = F.relu(self.fc2(x))
+        x = self.fc3(x)
         return x
 
     def runNetwork(self, testloader) :
@@ -42,7 +50,7 @@ class Net(nn.Module):
         with torch.no_grad():
             for data in testloader:
                 images, labels = data
-                images, labels = images.to(device), labels.to(device)
+                # images, labels = images.to(device), labels.to(device)
                 outputs = net(images)
                 _, predicted = torch.max(outputs.data, 1)
                 total += labels.size(0)
@@ -54,6 +62,7 @@ class Net(nn.Module):
 if __name__ == '__main__':
 
     start = datetime.datetime.now()
+    print ('Started at: '+ str(start) )
     ########################################################################
     # 1. Check Cuda availability
     # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -84,7 +93,7 @@ if __name__ == '__main__':
     # Image Dataset
 
     net = Net()
-    net.to(device)
+    # net.to(device)
 
     ########################################################################
     # 4. Define a Loss function and optimizer
@@ -105,7 +114,7 @@ if __name__ == '__main__':
         for i, data in enumerate(trainloader, 0):
             # get the inputs
             inputs, labels = data
-            inputs, labels = inputs.to(device), labels.to(device)
+            # inputs, labels = inputs.to(device), labels.to(device)
             # zero the parameter gradients
             optimizer.zero_grad()
 
@@ -114,7 +123,7 @@ if __name__ == '__main__':
             loss = criterion(outputs, labels)
             loss.backward()
             optimizer.step()        
-
+        net.runNetwork(testloader)
     print('Finished Training')
 
     ########################################################################
@@ -132,7 +141,7 @@ if __name__ == '__main__':
     with torch.no_grad():
         for data in testloader:
             images, labels = data
-            images, labels = images.to(device), labels.to(device)
+            # images, labels = images.to(device), labels.to(device)
             outputs = net(images)
             _, predicted = torch.max(outputs, 1)
             c = (predicted == labels).squeeze()
